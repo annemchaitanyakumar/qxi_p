@@ -29,6 +29,14 @@ body {
   width: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  /* Prevent text selection globally */
+}
+
+input,
+textarea {
+  user-select: auto;
+  /* Re-enable for forms */
 }
 
 .app-container {
