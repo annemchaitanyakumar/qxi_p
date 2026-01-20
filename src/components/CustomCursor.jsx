@@ -6,12 +6,21 @@ const CustomCursor = () => {
     const cursorX = useMotionValue(-100);
     const cursorY = useMotionValue(-100);
     const [coords, setCoords] = useState({ x: 0, y: 0 });
+    const [isMobile, setIsMobile] = useState(false);
 
-    const springConfig = { damping: 50, stiffness: 1000 }; // Much snappier tracking
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const springConfig = { damping: 50, stiffness: 1000 };
     const sx = useSpring(cursorX, springConfig);
     const sy = useSpring(cursorY, springConfig);
 
     useEffect(() => {
+        if (isMobile) return;
         const moveCursor = (e) => {
             cursorX.set(e.clientX);
             cursorY.set(e.clientY);
@@ -23,7 +32,9 @@ const CustomCursor = () => {
 
         window.addEventListener('mousemove', moveCursor);
         return () => window.removeEventListener('mousemove', moveCursor);
-    }, []);
+    }, [isMobile]);
+
+    if (isMobile) return null;
 
     return (
         <div style={{

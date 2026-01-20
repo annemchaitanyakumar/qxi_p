@@ -3,6 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const HamburgerMenu = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     // Lock body scroll when menu is open
     useEffect(() => {
@@ -12,6 +20,8 @@ const HamburgerMenu = () => {
             document.body.style.overflow = 'auto';
         }
     }, [isOpen]);
+
+    if (!isMobile) return null;
 
     const menuItems = [
         { label: "EXPERTISE", href: "#expertise" },
@@ -28,7 +38,7 @@ const HamburgerMenu = () => {
                 style={{
                     position: 'fixed',
                     top: '2rem',
-                    right: '2rem',
+                    right: '1.5rem', // Moved slightly left for mobile edge clearance
                     zIndex: 10000,
                     background: 'none',
                     border: 'none',

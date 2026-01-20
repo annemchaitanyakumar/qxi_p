@@ -435,46 +435,53 @@ const Particles = ({ count = 300 }) => {
     );
 };
 
-const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef }) => {
-    const sceneRef = useRef();
+const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile }) => {
+    const groupRef = useRef();
+
+    // One-time reset when loading completes to prevent "stuck rotation"
+    useEffect(() => {
+        if (!isLoading && groupRef.current) {
+            groupRef.current.rotation.y = 0;
+            groupRef.current.position.x = 0;
+        }
+    }, [isLoading]);
 
     useFrame((state, delta) => {
         if (isLoading && Math.abs(walkParams.current.x) > 0.01) {
             elapsedRef.current += delta;
         }
 
-        if (sceneRef.current) {
+        if (groupRef.current) {
             if (isLoading) {
-                sceneRef.current.position.x = walkParams.current.x;
-                sceneRef.current.rotation.y = walkParams.current.rotationY;
-            } else {
-                // Hard reset to final "Center" position to prevent disappearing
-                sceneRef.current.position.x = 0;
-                sceneRef.current.rotation.y = 0;
+                // Walk animation... 
+                groupRef.current.position.x = walkParams.current.x;
+                groupRef.current.rotation.y = walkParams.current.rotationY;
             }
+            // Lift panda significantly on mobile
+            groupRef.current.position.y = isMobile ? 1.2 : 0;
         }
     });
 
     return (
-        <group ref={sceneRef}>
-            <PresentationControls
-                global
-                enabled={!isLoading}
-                config={{ mass: 2, tension: 500 }}
-                snap={{ mass: 4, tension: 1500 }}
-                rotation={[0, 0, 0]}
-                polar={[-Math.PI / 6, Math.PI / 6]}
-                azimuth={[-Math.PI / 4, Math.PI / 4]}
-            >
-                <Float speed={isLoading ? 0.5 : 2} rotationIntensity={isLoading ? 0.1 : 0.5} floatIntensity={isLoading ? 0.2 : 1}>
+        <PresentationControls
+            global
+            enabled={false} // Dragging disabled per user request to ensure stability
+            config={{ mass: 5, tension: 400, friction: 60 }}
+            snap={{ mass: 2, tension: 800, friction: 80 }}
+            rotation={[0, 0, 0]}
+            polar={[0, 0]} // Locked
+            azimuth={[0, 0]} // Locked
+        >
+            <group ref={groupRef}>
+                <Float speed={isLoading ? 0.3 : 2} rotationIntensity={isLoading ? 0.05 : 0.4} floatIntensity={isLoading ? 0.1 : 0.8}>
                     <Panda
-                        isMoving={isLoading && Math.abs(walkParams.current.x) > 0.05}
+                        isMoving={isLoading && Math.abs(walkParams.current.x) > 0.1}
                         walkParams={walkParams}
                         isLoading={isLoading}
                     />
                 </Float>
-            </PresentationControls>
-        </group>
+            </group>
+        </PresentationControls>
     );
 };
 
@@ -536,6 +543,7 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
                     onLoadingComplete={onLoadingComplete}
                     walkParams={walkParams}
                     elapsedRef={elapsedRef}
+                    isMobile={isMobile}
                 />
 
                 <Particles />
