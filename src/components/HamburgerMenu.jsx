@@ -38,7 +38,7 @@ const HamburgerMenu = () => {
                 style={{
                     position: 'fixed',
                     top: '2rem',
-                    right: '1.5rem', // Moved slightly left for mobile edge clearance
+                    right: '3rem', // Reverted to right side and moved further inward per user "little left" request
                     zIndex: 10000,
                     background: 'none',
                     border: 'none',
