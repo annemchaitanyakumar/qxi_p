@@ -1,15 +1,15 @@
 const Contact = () => {
     return (
         <section id="contact-form" style={{
-            padding: 'clamp(6rem, 15vh, 10rem) 1rem',
+            padding: 'clamp(4rem, 12vh, 8rem) 1rem', // Slightly tighter
             maxWidth: '1400px',
             margin: '0 auto',
             borderBottom: '1px solid var(--line-color)'
         }}>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', // Responsive split
-                gap: '4rem'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Reduced min-width
+                gap: 'clamp(2rem, 5vw, 4rem)'
             }}>
                 {/* Left: Info */}
                 <div>

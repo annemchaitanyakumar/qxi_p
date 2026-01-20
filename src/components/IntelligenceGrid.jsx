@@ -102,7 +102,7 @@ const IntelligenceGrid = () => {
 
             <div ref={gridRef} style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Smaller min-width for mobile
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', // Reduced min-width
                 gap: '1px',
                 backgroundColor: 'var(--line-color)',
                 border: '1px solid var(--line-color)'
@@ -114,7 +114,7 @@ const IntelligenceGrid = () => {
                         whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
                         style={{
                             backgroundColor: 'var(--bg-color)',
-                            padding: '4rem 3rem',
+                            padding: 'clamp(2rem, 8vw, 4rem) clamp(1.5rem, 5vw, 3rem)', // More responsive padding
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '2rem',

@@ -131,13 +131,18 @@ const HUDOverlay = () => {
             </div>
 
             {/* Bottom Right: Scroll & Version */}
-            <div style={{ position: 'absolute', bottom: '2rem', right: '2rem', textAlign: 'right' }}>
+            <div style={{
+                position: 'absolute',
+                bottom: 'clamp(1rem, 5vh, 2rem)',
+                right: 'clamp(1rem, 5vw, 2rem)',
+                textAlign: 'right'
+            }}>
                 <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
                     <p>V_2.5.01-RC</p>
                     <p>PRJ_QX_INTEL</p>
                 </div>
                 <div style={{
-                    width: '150px',
+                    width: 'clamp(100px, 30vw, 200px)',
                     height: '2px',
                     background: 'rgba(255,255,255,0.1)',
                     position: 'relative'

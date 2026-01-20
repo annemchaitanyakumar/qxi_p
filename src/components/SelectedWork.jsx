@@ -76,7 +76,7 @@ const SelectedWork = () => {
 
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', // Responsive grid
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Reduced min-width
                 gap: '2rem'
             }}>
                 {projects.map((project, i) => (

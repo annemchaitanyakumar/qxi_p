@@ -47,19 +47,19 @@ const Philosophy = () => {
 
     return (
         <section ref={sectionRef} id="philosophy" style={{
-            padding: 'clamp(6rem, 15vh, 10rem) 1rem',
+            padding: 'clamp(4rem, 10vh, 10rem) 1rem', // Reduced padding
             maxWidth: '1400px',
             margin: '0 auto',
             borderBottom: '1px solid var(--line-color)'
         }}>
             <div style={{
-                marginBottom: '6rem',
+                marginBottom: '4rem', // Reduced margin
                 borderLeft: '2px solid var(--accent-color)',
-                paddingLeft: '2rem'
+                paddingLeft: 'clamp(1rem, 3vw, 2rem)' // Responsive padding
             }}>
                 <span className="mono-small">OUR_ETHOS</span>
                 <h2 style={{
-                    fontSize: 'clamp(3rem, 10vw, 6rem)',
+                    fontSize: 'clamp(2.5rem, 10vw, 6rem)', // Slightly smaller min
                     lineHeight: 0.9,
                     marginTop: '1rem',
                     textTransform: 'uppercase'
@@ -80,8 +80,8 @@ const Philosophy = () => {
                 {/* Stats Section */}
                 <div style={{
                     display: 'flex',
-                    gap: '4rem',
-                    marginTop: '4rem',
+                    gap: 'clamp(1.5rem, 4vw, 4rem)', // Responsive gap
+                    marginTop: '3rem',
                     flexWrap: 'wrap'
                 }}>
                     <div>
@@ -101,8 +101,8 @@ const Philosophy = () => {
 
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: 'clamp(3rem, 5vw, 6rem)'
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Reduced min-width
+                gap: 'clamp(2rem, 5vw, 6rem)'
             }}>
                 {pillars.map((item, i) => (
                     <div key={i} className="philosophy-item">

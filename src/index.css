@@ -26,8 +26,15 @@ body {
   color: var(--text-primary);
   font-family: var(--font-mono);
   overflow-x: hidden;
+  width: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
 }
 
 /* Lenis Recommended CSS */

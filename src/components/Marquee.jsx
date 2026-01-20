@@ -20,7 +20,7 @@ const Marquee = ({ text, reverse = false }) => {
                 style={{ display: 'inline-block' }}
             >
                 <span style={{
-                    fontSize: 'clamp(4rem, 15vw, 8rem)', // Responsive font size
+                    fontSize: 'clamp(2.5rem, 12vw, 8rem)', // More conservative mobile size
                     fontFamily: 'var(--font-header)',
                     textTransform: 'uppercase',
                     marginRight: '2rem'

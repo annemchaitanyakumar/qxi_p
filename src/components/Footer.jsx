@@ -2,7 +2,8 @@ const Footer = () => {
     return (
         <footer style={{
             padding: '4rem 1rem 8rem',
-            background: 'linear-gradient(to bottom, transparent, #050505)'
+            background: 'linear-gradient(to bottom, transparent, #050505)',
+            overflow: 'hidden' // Prevent giant text from causing horizontal scroll
         }}>
             <div style={{
                 maxWidth: '1400px',
