@@ -529,7 +529,7 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
     }, [isLoading, onLoadingComplete]);
 
     return (
-        <div style={{ width: '100%', height: '1000px', cursor: 'pointer', touchAction: 'none' }}>
+        <div style={{ width: '100%', height: '1000px', cursor: 'pointer', touchAction: 'auto' }}>
             <Canvas dpr={[1, 2]} shadows>
                 <PerspectiveCamera makeDefault position={[0, isMobile ? 1 : 0, isMobile ? 14 : 10]} fov={isMobile ? 45 : 35} />
 
