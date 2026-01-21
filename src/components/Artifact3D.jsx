@@ -1,4 +1,6 @@
 import { useRef, useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useFaceTracking } from '../hooks/useFaceTracking';
 import { Canvas, useFrame } from '@react-three/fiber';
 import {
     Float,
@@ -12,14 +14,18 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 
 
-const Eye = ({ position, gyro }) => {
+const Eye = ({ position, gyro, trackingData }) => {
     const pupilRef = useRef();
 
     useFrame((state) => {
         if (pupilRef.current) {
             let targetX, targetY;
 
-            if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5)) {
+            if (trackingData && trackingData.head) {
+                // Camera Tracking
+                targetX = THREE.MathUtils.clamp(trackingData.head.y * -1.5, -0.06, 0.06);
+                targetY = THREE.MathUtils.clamp(trackingData.head.x * 2.0, -0.06, 0.06);
+            } else if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5) && 'ontouchstart' in window) {
                 // Map gamma (tilt left/right) to horizontal movement (-0.05 to 0.05)
                 // Map beta (tilt forward/back) to vertical movement (-0.05 to 0.05)
                 // Increased sensitivity: 0.005 instead of 0.002
@@ -142,7 +148,7 @@ const ShellFur = ({ geometry, color, count = 20, thickness = 0.15, motionOffset 
     ));
 };
 
-const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed elapsedRef to walkParams
+const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro, trackingData }) => { // Changed elapsedRef to walkParams
     const hipsRef = useRef();
     const spineRef = useRef();
     const neckRef = useRef();
@@ -164,6 +170,12 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
 
     // Fur movement ref
     const furMotionRef = useRef(new THREE.Vector3());
+
+    const handlePointerDown = () => {
+        if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(250);
+        }
+    };
 
     useFrame((state, delta) => {
         // Lock leg cycle to X position to strictly prevent sliding
@@ -190,23 +202,35 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
             if (leftAnkleRef.current) leftAnkleRef.current.rotation.x = leftCycle * 0.2;
             if (rightAnkleRef.current) rightAnkleRef.current.rotation.x = rightCycle * 0.2;
 
-            // 2. Arms (Counter-swing with Waving)
+            // 2. Arms (Counter-swing with Waving / Neural Tracking)
             // WE WANT THE VIEWER'S RIGHT HAND TO WAVE (Panda's Left Hand).
-            // Code-LEFT is Viewer-LEFT (-0.9). Wait. 
-            // If the user said "Still Left hand is waving" when I animated `rightShoulderRef`, then
-            // `rightShoulderRef` appears on the LEFT to them? Or they want the OTHER one.
-            // I will switch back to `leftShoulderRef` (Screen Left) because that's the only one left.
+
+            const leftHand = trackingData?.hands?.find(h => h.type === 'Right'); // Swapped mirror
+            const rightHand = trackingData?.hands?.find(h => h.type === 'Left');
 
             // "Wave Zone" when x > -6
             const isWaving = currentX > -6;
 
-            // RIGHT ARM: Just walks
-            if (rightShoulderRef.current) rightShoulderRef.current.rotation.x = leftCycle * 0.35;
+            // RIGHT ARM: Walks or Camera
+            if (rightShoulderRef.current) {
+                if (rightHand) {
+                    // Neural Track Right Arm (Panda's Right)
+                    // Map hand.y (0 top, 1 bottom) to rotation
+                    const targetRot = (rightHand.wrist.y - 0.5) * -Math.PI;
+                    rightShoulderRef.current.rotation.x = THREE.MathUtils.lerp(rightShoulderRef.current.rotation.x, targetRot, 0.8);
+                } else {
+                    rightShoulderRef.current.rotation.x = leftCycle * 0.35;
+                }
+            }
             if (rightElbowRef.current) rightElbowRef.current.rotation.x = -Math.abs(leftCycle * 0.3);
 
-            // LEFT ARM: WAVES
+            // LEFT ARM: WAVES or Camera
             if (leftShoulderRef.current) {
-                if (isWaving) {
+                if (leftHand) {
+                    // Neural Track Left Arm (Panda's Left)
+                    const targetRot = (leftHand.wrist.y - 0.5) * -Math.PI;
+                    leftShoulderRef.current.rotation.x = THREE.MathUtils.lerp(leftShoulderRef.current.rotation.x, targetRot, 0.8);
+                } else if (isWaving) {
                     // Blend to wave
                     const waveBlend = Math.min(1, (currentX + 6) / 2);
                     const walkRot = rightCycle * 0.35;
@@ -273,9 +297,14 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
         }
 
         if (headRef.current) {
-            let targetRotY, targetRotX;
+            let targetRotY, targetRotX, targetRotZ;
 
-            if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5)) {
+            if (trackingData && trackingData.head) {
+                // Camera Tracking
+                targetRotY = THREE.MathUtils.clamp(trackingData.head.y * -1.0, -0.8, 0.8);
+                targetRotX = THREE.MathUtils.clamp(trackingData.head.x * 1.5, -0.6, 0.6);
+                targetRotZ = THREE.MathUtils.clamp(trackingData.head.z * -0.8, -0.4, 0.4);
+            } else if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5) && 'ontouchstart' in window) {
                 // Increased sensitivity: 0.02 instead of 0.01
                 targetRotY = THREE.MathUtils.clamp(gyro.gamma * 0.02, -0.5, 0.5);
                 targetRotX = THREE.MathUtils.clamp((gyro.beta - 50) * 0.02, -0.4, 0.4);
@@ -284,8 +313,14 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
                 targetRotX = isLoading ? 0 : -state.mouse.y * 0.2;
             }
 
-            headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, targetRotY, 0.1);
-            headRef.current.rotation.x = THREE.MathUtils.lerp(headRef.current.rotation.x, targetRotX, 0.1);
+            // INSTANT TRACKING: Use 0.8 for camera, 0.1 for others
+            const lerpSpeed = (trackingData && trackingData.head) ? 0.8 : 0.1;
+
+            headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, targetRotY, lerpSpeed);
+            headRef.current.rotation.x = THREE.MathUtils.lerp(headRef.current.rotation.x, targetRotX, lerpSpeed);
+            if (targetRotZ !== undefined) {
+                headRef.current.rotation.z = THREE.MathUtils.lerp(headRef.current.rotation.z, targetRotZ, lerpSpeed);
+            }
         }
     });
 
@@ -319,7 +354,12 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
     const furMotion = furMotionRef.current;
 
     return (
-        <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]} frustumCulled={false}>
+        <group
+            position={[0, 0, 0]}
+            scale={[0.5, 0.5, 0.5]}
+            frustumCulled={false}
+            onPointerDown={handlePointerDown}
+        >
             {/* HIPS (Root of movements) */}
             <group ref={hipsRef}>
 
@@ -366,7 +406,7 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed
                                         <sphereGeometry args={[0.25, 32, 32]} />
                                         <meshStandardMaterial color="#111111" roughness={0.5} />
                                     </mesh>
-                                    <Eye position={[0, 0, 0.1]} gyro={gyro} />
+                                    <Eye position={[0, 0, 0.1]} gyro={gyro} trackingData={trackingData} />
                                 </group>
                             ))}
 
@@ -455,7 +495,7 @@ const Particles = ({ count = 300 }) => {
     );
 };
 
-const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile, gyro }) => {
+const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile, gyro, trackingData }) => {
     const groupRef = useRef();
 
     // One-time reset when loading completes to prevent "stuck rotation"
@@ -499,6 +539,7 @@ const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile,
                         walkParams={walkParams}
                         isLoading={isLoading}
                         gyro={gyro}
+                        trackingData={trackingData}
                     />
                 </Float>
             </group>
@@ -555,6 +596,7 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
     const [isMobile, setIsMobile] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const { gyro, permissionGranted, requestPermission } = useGyroscope();
+    const { trackingData, startCamera, stopCamera, isCameraActive } = useFaceTracking();
 
     useEffect(() => {
         if (isMobile && !permissionGranted && !isSyncing) {
@@ -570,7 +612,9 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
         const checkMobile = () => {
             const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             const mobileAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            setIsMobile(window.innerWidth < 1024 || hasTouch || mobileAgent);
+            // On laptops with touch screens, we want to stay in "Desktop" mode (mouse control).
+            // So we only set isMobile true if it's a small screen AND has touch, or if it matches mobileAgent.
+            setIsMobile((window.innerWidth < 1024 && hasTouch) || mobileAgent);
         };
         checkMobile();
         window.addEventListener('resize', checkMobile);
@@ -614,46 +658,85 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
     }, [isLoading, onLoadingComplete]);
 
     return (
-        <div style={{ width: '100%', height: '1000px', cursor: 'pointer', touchAction: 'auto' }}>
-            <Canvas dpr={[1, 2]} shadows>
-                <PerspectiveCamera makeDefault position={[0, isMobile ? 1 : 0, isMobile ? 14 : 10]} fov={isMobile ? 45 : 35} />
-
-                <ambientLight intensity={0.5} />
-                <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} />
-                <Environment preset="city" />
-
-                <Scene
-                    isLoading={isLoading}
-                    onLoadingComplete={onLoadingComplete}
-                    walkParams={walkParams}
-                    elapsedRef={elapsedRef}
-                    isMobile={isMobile}
-                    gyro={gyro}
-                />
-
-                <Particles />
-            </Canvas>
-
-
-            {isSyncing && (
-                <div style={{
-                    position: 'fixed',
-                    top: '2.5rem',
-                    left: '1.5rem',
-                    zIndex: 100000,
-                    fontFamily: 'var(--font-mono)',
-                    color: 'white',
-                    fontSize: '0.6rem',
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    opacity: 0.8,
-                    pointerEvents: 'none'
-                }}>
-                    Starting Gyro Engine...
-                </div>
+        <>
+            {/* Neural Cam Toggle - Portal to body to prevent container transforms from affecting it */}
+            {createPortal(
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        isCameraActive ? stopCamera() : startCamera();
+                    }}
+                    style={{
+                        position: 'fixed',
+                        bottom: '1.5rem',
+                        left: '1.5rem',
+                        zIndex: 2147483640, // Slightly below max to allow cursor on top
+                        fontFamily: 'var(--font-mono)',
+                        color: isCameraActive ? '#ff3333' : '#ffffff',
+                        fontSize: '0.55rem',
+                        letterSpacing: '0.15em',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        opacity: 1,
+                        border: isCameraActive ? '1px solid #ff3333' : '1px solid rgba(255,255,255,0.3)',
+                        padding: '10px 20px',
+                        borderRadius: '2px',
+                        background: 'rgba(0,0,0,0.8)',
+                        backdropFilter: 'blur(8px)',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isCameraActive ? '0 0 15px rgba(255, 51, 51, 0.2)' : 'none',
+                        outline: 'none',
+                        display: 'block',
+                        willChange: 'transform'
+                    }}>
+                    {isCameraActive ? "DISCONNECT NEURAL CAM" : "ACTIVATE NEURAL CAM"}
+                </button>,
+                document.body
             )}
-        </div>
+
+            <div style={{ width: '100%', height: '1000px', cursor: 'pointer', touchAction: 'auto' }}>
+                <Canvas dpr={[1, 2]} shadows>
+                    <PerspectiveCamera makeDefault position={[0, isMobile ? 1 : 0, isMobile ? 14 : 10]} fov={isMobile ? 45 : 35} />
+
+                    <ambientLight intensity={0.5} />
+                    <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
+                    <pointLight position={[-10, -10, -10]} intensity={0.5} />
+                    <Environment preset="city" />
+
+                    <Scene
+                        isLoading={isLoading}
+                        onLoadingComplete={onLoadingComplete}
+                        walkParams={walkParams}
+                        elapsedRef={elapsedRef}
+                        isMobile={isMobile}
+                        gyro={gyro}
+                        trackingData={trackingData}
+                    />
+
+                    <Particles />
+                </Canvas>
+
+
+                {isSyncing && (
+                    <div style={{
+                        position: 'fixed',
+                        top: '2.5rem',
+                        left: '1.5rem',
+                        zIndex: 100000,
+                        fontFamily: 'var(--font-mono)',
+                        color: 'white',
+                        fontSize: '0.6rem',
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                        opacity: 0.8,
+                        pointerEvents: 'none'
+                    }}>
+                        Starting Gyro Engine...
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
 

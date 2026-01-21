@@ -42,7 +42,7 @@ const CustomCursor = () => {
             top: 0,
             left: 0,
             pointerEvents: 'none',
-            zIndex: 99999,
+            zIndex: 2147483647, // Max Z index to stay above everything
             mixBlendMode: 'difference'
         }}>
             <motion.div
