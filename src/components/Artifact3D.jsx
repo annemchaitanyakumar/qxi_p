@@ -12,13 +12,24 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 
 
-const Eye = ({ position }) => {
+const Eye = ({ position, gyro }) => {
     const pupilRef = useRef();
 
     useFrame((state) => {
         if (pupilRef.current) {
-            const targetX = state.mouse.x * 0.05;
-            const targetY = state.mouse.y * 0.05;
+            let targetX, targetY;
+
+            if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5)) {
+                // Map gamma (tilt left/right) to horizontal movement (-0.05 to 0.05)
+                // Map beta (tilt forward/back) to vertical movement (-0.05 to 0.05)
+                // Increased sensitivity: 0.005 instead of 0.002
+                targetX = THREE.MathUtils.clamp(gyro.gamma * 0.005, -0.06, 0.06);
+                targetY = THREE.MathUtils.clamp((gyro.beta - 50) * 0.005, -0.06, 0.06);
+            } else {
+                targetX = state.mouse.x * 0.05;
+                targetY = state.mouse.y * 0.05;
+            }
+
             pupilRef.current.position.x = THREE.MathUtils.lerp(pupilRef.current.position.x, targetX, 0.2);
             pupilRef.current.position.y = THREE.MathUtils.lerp(pupilRef.current.position.y, targetY, 0.2);
         }
@@ -131,7 +142,7 @@ const ShellFur = ({ geometry, color, count = 20, thickness = 0.15, motionOffset 
     ));
 };
 
-const Panda = ({ isMoving, walkParams, isLoading, mouse }) => { // Changed elapsedRef to walkParams
+const Panda = ({ isMoving, walkParams, isLoading, mouse, gyro }) => { // Changed elapsedRef to walkParams
     const hipsRef = useRef();
     const spineRef = useRef();
     const neckRef = useRef();
@@ -262,8 +273,17 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse }) => { // Changed elaps
         }
 
         if (headRef.current) {
-            const targetRotY = isLoading ? 0 : state.mouse.x * 0.25;
-            const targetRotX = isLoading ? 0 : -state.mouse.y * 0.2;
+            let targetRotY, targetRotX;
+
+            if (gyro && (Math.abs(gyro.gamma) > 0.5 || Math.abs(gyro.beta - 45) > 0.5)) {
+                // Increased sensitivity: 0.02 instead of 0.01
+                targetRotY = THREE.MathUtils.clamp(gyro.gamma * 0.02, -0.5, 0.5);
+                targetRotX = THREE.MathUtils.clamp((gyro.beta - 50) * 0.02, -0.4, 0.4);
+            } else {
+                targetRotY = isLoading ? 0 : state.mouse.x * 0.25;
+                targetRotX = isLoading ? 0 : -state.mouse.y * 0.2;
+            }
+
             headRef.current.rotation.y = THREE.MathUtils.lerp(headRef.current.rotation.y, targetRotY, 0.1);
             headRef.current.rotation.x = THREE.MathUtils.lerp(headRef.current.rotation.x, targetRotX, 0.1);
         }
@@ -346,7 +366,7 @@ const Panda = ({ isMoving, walkParams, isLoading, mouse }) => { // Changed elaps
                                         <sphereGeometry args={[0.25, 32, 32]} />
                                         <meshStandardMaterial color="#111111" roughness={0.5} />
                                     </mesh>
-                                    <Eye position={[0, 0, 0.1]} />
+                                    <Eye position={[0, 0, 0.1]} gyro={gyro} />
                                 </group>
                             ))}
 
@@ -435,7 +455,7 @@ const Particles = ({ count = 300 }) => {
     );
 };
 
-const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile }) => {
+const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile, gyro }) => {
     const groupRef = useRef();
 
     // One-time reset when loading completes to prevent "stuck rotation"
@@ -478,6 +498,7 @@ const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile 
                         isMoving={isLoading && Math.abs(walkParams.current.x) > 0.1}
                         walkParams={walkParams}
                         isLoading={isLoading}
+                        gyro={gyro}
                     />
                 </Float>
             </group>
@@ -485,16 +506,79 @@ const Scene = ({ isLoading, onLoadingComplete, walkParams, elapsedRef, isMobile 
     );
 };
 
+const useGyroscope = () => {
+    const [gyro, setGyro] = useState({ alpha: 0, beta: 0, gamma: 0 });
+    const [permissionGranted, setPermissionGranted] = useState(false);
+
+    const handleOrientation = (event) => {
+        if (event.beta !== null && event.beta !== undefined) {
+            setGyro({
+                alpha: event.alpha || 0,
+                beta: event.beta || 0,
+                gamma: event.gamma || 0
+            });
+        }
+    };
+
+    useEffect(() => {
+        // We no longer auto-grant even on Android to ensure the user sees the 
+        // "STARTING GYRO ENGINE" button and provides a click gesture.
+        return () => {
+            window.removeEventListener('deviceorientation', handleOrientation);
+            window.removeEventListener('deviceorientationabsolute', handleOrientation);
+        };
+    }, []);
+
+    const requestPermission = async () => {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const permissionState = await DeviceOrientationEvent.requestPermission();
+                if (permissionState === 'granted') {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                    setPermissionGranted(true);
+                }
+            } catch (error) {
+                console.error('DeviceOrientation permission request failed:', error);
+            }
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+            setPermissionGranted(true);
+        }
+    };
+
+    return { gyro, permissionGranted, requestPermission };
+};
+
 const Artifact3D = ({ isLoading, onLoadingComplete }) => {
     const walkParams = useRef({ x: -50, rotationY: Math.PI / 2 });
     const elapsedRef = useRef(0);
     const [isMobile, setIsMobile] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const { gyro, permissionGranted, requestPermission } = useGyroscope();
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        if (isMobile && !permissionGranted && !isSyncing) {
+            setIsSyncing(true);
+            setTimeout(() => {
+                setIsSyncing(false);
+                requestPermission();
+            }, 2000);
+        }
+    }, [isMobile, permissionGranted]);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            const mobileAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            setIsMobile(window.innerWidth < 1024 || hasTouch || mobileAgent);
+        };
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        window.addEventListener('orientationchange', checkMobile);
+        return () => {
+            window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('orientationchange', checkMobile);
+        };
     }, []);
 
     useEffect(() => {
@@ -514,7 +598,8 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
                 tl.to(walkParams.current, {
                     x: 0,
                     duration: 3.5,
-                    ease: "expo.out"
+                    ease: "expo.out",
+                    delay: isMobile ? 2.0 : 0 // Delay walk until sync is done on mobile
                 });
 
                 // 2. Rotate
@@ -544,10 +629,30 @@ const Artifact3D = ({ isLoading, onLoadingComplete }) => {
                     walkParams={walkParams}
                     elapsedRef={elapsedRef}
                     isMobile={isMobile}
+                    gyro={gyro}
                 />
 
                 <Particles />
             </Canvas>
+
+
+            {isSyncing && (
+                <div style={{
+                    position: 'fixed',
+                    top: '2.5rem',
+                    left: '1.5rem',
+                    zIndex: 100000,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'white',
+                    fontSize: '0.6rem',
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    opacity: 0.8,
+                    pointerEvents: 'none'
+                }}>
+                    Starting Gyro Engine...
+                </div>
+            )}
         </div>
     );
 };
